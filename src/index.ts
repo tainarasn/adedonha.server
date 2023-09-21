@@ -42,7 +42,7 @@ const letters = [
     "Y",
     "Z",
 ]
-const categories = ["Animal", "País", "Cidade", "Comida", "Profissão", "Nome"]
+
 
 io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`)
@@ -100,10 +100,9 @@ io.on("connection", (socket) => {
 
         // Sorteia uma letra e uma categoria
         const randomLetter = letters[Math.floor(Math.random() * letters.length)]
-        const randomCategory = categories[Math.floor(Math.random() * categories.length)]
 
         // Envia a letra e a categoria para todos os usuários na sala
-        io.to(roomId).emit("game-data", { letter: randomLetter, category: randomCategory })
+        io.to(roomId).emit("game-data", { letter: randomLetter })
     })
 
     socket.on("stop-game", (data: { roomId: string }) => {
