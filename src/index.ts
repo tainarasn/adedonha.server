@@ -14,6 +14,8 @@ app.use(cors())
 
 // Step 1: Armazenando usuários por sala
 const rooms: { [key: string]: Array<{ id: string; username: string }> } = {}
+const roomAnswers: { [key: string]: { [userId: string]: { [category: string]: string } } } = {}
+
 const letters = [
     "A",
     "B",
@@ -42,7 +44,6 @@ const letters = [
     "Y",
     "Z",
 ]
-
 
 io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`)
@@ -89,10 +90,19 @@ io.on("connection", (socket) => {
     })
 
     //Step 4: Lidar com eventos do jogo
-    socket.on("submit-answer", (data: { roomId: string; answer: string }) => {
+    socket.on("submit-answer", (data: { roomId: string; answer: { [category: string]: string } }) => {
         const { roomId, answer } = data
-        // Lide com a lógica de resposta aqui
-        io.to(roomId).emit("new-answer", { userId: socket.id, answer })
+
+        console.log(`Received answers from user ${socket.id} in room ${roomId}:`, answer)
+
+        if (!roomAnswers[roomId]) {
+            roomAnswers[roomId] = {}
+        }
+
+        roomAnswers[roomId][socket.id] = answer
+
+        // io.to(roomId).emit("new-answer", { userId: socket.id, answer })
+        console.log(`Received answers from user ${socket.id} in room ${roomId}:`, answer)
     })
 
     socket.on("start-game", (data: { roomId: string }) => {
@@ -108,11 +118,45 @@ io.on("connection", (socket) => {
     socket.on("stop-game", (data: { roomId: string }) => {
         const { roomId } = data
 
-        // Informa todos os usuários na sala que o jogo foi parado
-        io.to(roomId).emit("game-stopped")
+        // Solicitar respostas de todos os jogadores
+        io.to(roomId).emit("request-answers")
+
+        // Depois de esperar um curto período de tempo (por exemplo, 2 segundos) para coletar respostas,
+
+        setTimeout(() => {
+            // Calcular a pontuação
+            const scores: { [userId: string]: number } = {}
+            const allUsers = rooms[roomId]
+
+            for (const user of allUsers) {
+                const userId = user.id
+                scores[userId] = 0
+
+                // Se não houver respostas para um usuário, continue com o próximo usuário
+                if (!roomAnswers[roomId] || !roomAnswers[roomId][userId]) continue
+
+                for (const category in roomAnswers[roomId][userId]) {
+                    const word = roomAnswers[roomId][userId][category]
+                    if (!word) {
+                        continue // Se a resposta estiver vazia, não adicione pontos e vá para a próxima categoria
+                    }
+
+                    const otherUsers = Object.keys(roomAnswers[roomId]).filter((id) => id !== userId)
+                    if (otherUsers.some((id) => roomAnswers[roomId][id][category] === word)) {
+                        scores[userId] += 50
+                    } else {
+                        scores[userId] += 100
+                    }
+                }
+            }
+
+            console.log(`Calculated scores for room ${roomId}:`, scores)
+            io.to(roomId).emit("game-results", { scores, answers: roomAnswers[roomId] })
+            io.to(roomId).emit("game-stopped")
+        }, 2000)
     })
 })
-
 server.listen(3000, () => {
     console.log("Server running on http://localhost:3000/")
 })
+
