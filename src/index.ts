@@ -11,10 +11,22 @@ const io = new Server(server, {
 })
 
 app.use(cors())
+app.use(express.json()) // Adicionando middleware para analisar solicitações JSON
 
 // Step 1: Armazenando usuários por sala
 const rooms: { [key: string]: Array<{ id: string; username: string }> } = {}
 const roomAnswers: { [key: string]: { [userId: string]: { [category: string]: string } } } = {}
+
+app.post("/create-room", (req, res) => {
+    const roomId = new Date().getTime().toString() // Usando timestamp como um simples ID de sala
+    rooms[roomId] = []
+    res.json({ roomId })
+})
+
+app.get("/rooms", (req, res) => {
+    const roomList = Object.keys(rooms)
+    res.json({ rooms: roomList })
+})
 
 const letters = [
     "A",
@@ -49,6 +61,10 @@ io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`)
     console.log(`Salas do cliente ${socket.id}:`, socket.rooms)
 
+    socket.on("update-username", (username) => {
+        console.log(`Username updated: ${username}`);
+        
+    });
     socket.on("join-room", (data: { roomId: string; username: string }) => {
         const { roomId, username } = data
 
