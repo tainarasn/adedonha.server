@@ -62,8 +62,9 @@ io.on("connection", (socket) => {
     console.log(`Salas do cliente ${socket.id}:`, socket.rooms)
 
     socket.on("update-username", (username) => {
-        console.log(`Username updated: ${username}`)
-    })
+        console.log(`Username updated: ${username}`);
+        
+    });
     socket.on("join-room", (data: { roomId: string; username: string }) => {
         const { roomId, username } = data
 
@@ -88,7 +89,6 @@ io.on("connection", (socket) => {
 
         rooms[roomId] = rooms[roomId].filter((user) => user.id !== socket.id)
         socket.leave(roomId)
-        console.log(`User ${username} (ID: ${socket.id}) entrou na sala ${roomId}`)
 
         io.to(roomId).emit("user-list", rooms[roomId])
         socket.to(roomId).emit("user-left", { userId: socket.id, username })
@@ -175,3 +175,4 @@ io.on("connection", (socket) => {
 server.listen(3000, () => {
     console.log("Server running on http://localhost:3000/")
 })
+
