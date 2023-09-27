@@ -131,11 +131,13 @@ io.on("connection", (socket) => {
         io.to(roomId).emit("game-data", { letter: randomLetter })
     })
 
-    socket.on("stop-game", (data: { roomId: string }) => {
-        const { roomId } = data
+    socket.on("stop-game", (data: { roomId: string; username: String }) => {
+        const { roomId, username } = data
 
         // Solicitar respostas de todos os jogadores
         io.to(roomId).emit("request-answers")
+        console.log("Emitting stop-activated with username:", username)
+        io.in(roomId).emit("stop-activated", { username }) // Notify all players who activated the stop
 
         // Depois de esperar um curto período de tempo (por exemplo, 2 segundos) para coletar respostas,
 
@@ -169,7 +171,7 @@ io.on("connection", (socket) => {
             console.log(`Calculated scores for room ${roomId}:`, scores)
             io.to(roomId).emit("game-results", { scores, answers: roomAnswers[roomId] })
             io.to(roomId).emit("game-stopped")
-        }, 2000)
+        }, 1000)
     })
 })
 server.listen(3000, () => {
