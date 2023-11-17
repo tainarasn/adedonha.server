@@ -13,18 +13,35 @@ const io = new Server(server, {
 app.use(cors())
 app.use(express.json()) // Adicionando middleware para analisar solicitações JSON
 
+interface RoomDetails {
+    [key: string]: {
+        name: string
+        outrasInfos: any // Substitua 'any' pelo tipo real das 'outrasInfos', se conhecido
+    }
+}
 // Step 1: Armazenando usuários por sala
 const rooms: { [key: string]: Array<{ id: string; username: string }> } = {}
 const roomAnswers: { [key: string]: { [userId: string]: { [category: string]: string } } } = {}
-
+const roomDetails: RoomDetails = {}
 app.post("/create-room", (req, res) => {
     const roomId = new Date().getTime().toString() // Usando timestamp como um simples ID de sala
-    rooms[roomId] = []
-    res.json({ roomId })
+    const roomName = req.body.name // Nome da sala enviado na requisição
+    const outrasInfos = req.body.outrasInfos // Outras informações enviadas na requisição
+
+    // Armazena os detalhes da sala em roomDetails
+    roomDetails[roomId] = {
+        name: roomName,
+        outrasInfos, // Supondo que outrasInfos seja um objeto ou algum outro tipo de dado
+    }
+    res.json({ roomId, details: roomDetails[roomId] })
 })
 
 app.get("/rooms", (req, res) => {
-    const roomList = Object.keys(rooms)
+    const roomList = Object.keys(roomDetails).map((id) => ({
+        id,
+        ...roomDetails[id],
+    }))
+
     res.json({ rooms: roomList })
 })
 
@@ -62,9 +79,8 @@ io.on("connection", (socket) => {
     console.log(`Salas do cliente ${socket.id}:`, socket.rooms)
 
     socket.on("update-username", (username) => {
-        console.log(`Username updated: ${username}`);
-        
-    });
+        console.log(`Username updated: ${username}`)
+    })
     socket.on("join-room", (data: { roomId: string; username: string }) => {
         const { roomId, username } = data
 
@@ -77,15 +93,20 @@ io.on("connection", (socket) => {
         }
 
         socket.join(roomId)
+
         console.log(`User ${username} (ID: ${socket.id}) entrou na sala ${roomId}`)
 
         // Step 3: Emitindo atualização de lista de usuários
         io.to(roomId).emit("user-list", rooms[roomId])
-        io.to(roomId).emit("user-joined", { id: socket.id, username, rooms: socket.rooms })
+        io.to(roomId).emit("user-joined", { id: socket.id, username, rooms: [...socket.rooms] })
     })
 
     socket.on("leave-room", (data: { roomId: string; username: string }) => {
         const { roomId, username } = data
+
+        if (!rooms[roomId]) {
+            rooms[roomId] = [] // ou algum valor inicial adequado
+        }
 
         rooms[roomId] = rooms[roomId].filter((user) => user.id !== socket.id)
         socket.leave(roomId)
@@ -97,6 +118,9 @@ io.on("connection", (socket) => {
     socket.on("disconnect", () => {
         // Remove o usuário de todas as salas e atualiza essas salas
         for (const roomId in rooms) {
+            if (!rooms[roomId]) {
+                rooms[roomId] = [] // ou algum valor inicial adequado
+            }
             if (rooms[roomId].some((user) => user.id === socket.id)) {
                 rooms[roomId] = rooms[roomId].filter((user) => user.id !== socket.id)
                 io.to(roomId).emit("user-list", rooms[roomId])
@@ -177,4 +201,3 @@ io.on("connection", (socket) => {
 server.listen(3000, () => {
     console.log("Server running on http://localhost:3000/")
 })
-

@@ -18,13 +18,20 @@ app.use(express_1.default.json()); // Adicionando middleware para analisar solic
 // Step 1: Armazenando usuários por sala
 const rooms = {};
 const roomAnswers = {};
+const roomDetails = {};
 app.post("/create-room", (req, res) => {
     const roomId = new Date().getTime().toString(); // Usando timestamp como um simples ID de sala
-    rooms[roomId] = [];
-    res.json({ roomId });
+    const roomName = req.body.name; // Nome da sala enviado na requisição
+    const outrasInfos = req.body.outrasInfos; // Outras informações enviadas na requisição
+    // Armazena os detalhes da sala em roomDetails
+    roomDetails[roomId] = {
+        name: roomName,
+        outrasInfos, // Supondo que outrasInfos seja um objeto ou algum outro tipo de dado
+    };
+    res.json({ roomId, details: roomDetails[roomId] });
 });
 app.get("/rooms", (req, res) => {
-    const roomList = Object.keys(rooms);
+    const roomList = Object.keys(roomDetails).map((id) => (Object.assign({ id }, roomDetails[id])));
     res.json({ rooms: roomList });
 });
 const letters = [
